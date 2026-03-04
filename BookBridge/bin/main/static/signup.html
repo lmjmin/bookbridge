@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>회원가입</title>
+
+  <!-- 반드시 head 최상단: API_BASE 세팅 -->
+  <script src="js/config.js?v=20251030"></script>
+
+  <style>
+    body{font-family:Arial, sans-serif; display:flex; justify-content:center; align-items:center; min-height:100vh; background:#fff;}
+    .container{background:#fff; padding:30px; border-radius:10px; box-shadow:0 0 15px rgba(0,0,0,.15); text-align:center; width:320px;}
+    .logo{width:80px; margin-bottom:15px;}
+    h2{margin-bottom:20px; color:#000;}
+    input{width:90%; padding:12px; margin:10px 0; border:2px solid #FF450A; border-radius:8px; transition:.3s;}
+    input:focus{border-color:#000; outline:none;}
+    button{width:100%; padding:12px; background:#000; color:#fff; border:none; border-radius:8px; cursor:pointer; font-size:16px; transition:.3s;}
+    button:hover{background:#FF450A;}
+    .links{margin-top:15px;}
+    .links a{text-decoration:none; color:#FF450A; font-weight:bold;}
+    .links a:hover{text-decoration:underline;}
+  </style>
+  <datalist id="univ-datalist"></datalist>
+</head>
+<body>
+  <div class="container">
+    <img src="media/로고.png" alt="로고" class="logo">
+    <h2>회원가입</h2>
+
+    <input type="text" id="school" placeholder="학교" list="univ-datalist">
+    <input type="text" id="major-input" placeholder="전공">
+
+    <hr>
+
+    <input type="text" id="userId" placeholder="아이디">
+    <input id="email" type="email" placeholder="이메일" />
+
+    <button type="button" id="btnEmailCode">이메일 인증코드 요청</button>
+    <input id="emailCode" placeholder="인증코드(6자리)" />
+    <button type="button" id="btnVerifyEmail">인증코드 확인</button>
+
+    <input type="password" id="password" placeholder="비밀번호">
+    <input type="password" id="confirm_password" placeholder="비밀번호 확인">
+
+    <hr>
+
+    <!-- 이름 입력: id="username" 이지만 실제로 name 필드에 매핑됨 -->
+    <input type="text" id="username" placeholder="이름">
+    <input type="text" id="birthdate" placeholder="YYYYMMDD(8자리)" maxlength="10">
+    <input type="tel" id="phone" placeholder="전화번호" maxlength="13">
+
+    <button id="btnSignup">가입하기</button>
+    <div class="links">
+      <a href="login.html">로그인으로 돌아가기</a>
+    </div>
+  </div>
+
+<script>
+const API_BASE = (window.API_BASE ?? "").toString().replace(/\/+$/,"");
+
+/* 대학 자동완성 */
+(function(){
+  const univInput = document.getElementById('school');
+  const univDatalist = document.getElementById('univ-datalist');
+  let timer = null;
+
+  if (univInput && univDatalist) {
+    univInput.addEventListener('input', () => {
+      const q = univInput.value.trim();
+      if (timer) clearTimeout(timer);
+      if (!q) { univDatalist.innerHTML = ''; return; }
+
+      timer = setTimeout(async () => {
+        try {
+          const res = await fetch(`${API_BASE}/api/universities?q=${encodeURIComponent(q)}`);
+          const list = await res.json().catch(()=>[]);
+          univDatalist.innerHTML = (list || [])
+            .map(u => `<option value="${typeof u === 'string' ? u : (u.name || '')}"></option>`).join('');
+        } catch (_) { /* ignore */ }
+      }, 180);
+    });
+  }
+})();
+
+/* 이메일 인증코드 요청 */
+async function requestEmailCode(){
+  const email = (document.getElementById('email').value || '').trim();
+  if (!email) { alert('이메일을 입력하세요.'); return; }
+
+  const res = await fetch(`${API_BASE}/api/email/send`, {    // 변경됨
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email })
+  });
+
+  const text = await res.text();
+  let data = {};
+  try { data = JSON.parse(text); } catch {}
+
+  if (!res.ok || data.ok === false) {
+    alert('코드 요청 실패\n' + (data.message || text || res.status));
+    return;
+  }
+  alert(data.message || '인증코드를 이메일로 전송했습니다. (유효시간 5분)');
+}
+
+/* 인증코드 검증(서버에서 used=true 처리) */
+async function verifyEmailCode(){
+  const email = (document.getElementById('email').value || '').trim();
+  const code  = (document.getElementById('emailCode').value || '').trim();
+  if (!email || !code) { alert('이메일과 인증코드를 입력하세요.'); return; }
+
+  const res = await fetch(`${API_BASE}/api/email/verify`, {  // 변경됨
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, code })
+  });
+
+  const text = await res.text();
+  let data = {};
+  try { data = JSON.parse(text); } catch {}
+
+  if (!res.ok || data.ok === false) {
+    alert('인증 실패\n' + (data.message || text || res.status));
+    return;
+  }
+
+  const btn = document.getElementById('btnVerifyEmail');
+  if (btn) { btn.disabled = true; btn.textContent = '인증 완료'; }
+  alert(data.message || '이메일 인증 완료!');
+}
+
+/* 입력 보정 */
+function normalizeBirthdate(v){
+  v = (v||"").replace(/\D/g,"");
+  if (v.length === 8) return v.slice(0,4)+"-"+v.slice(4,6)+"-"+v.slice(6);
+  return v;
+}
+function normalizePhone(v){
+  v = (v||"").replace(/\D/g,"");
+  if (v.length === 11) return v.replace(/(\d{3})(\d{4})(\d{4})/,"$1-$2-$3");
+  return v;
+}
+document.getElementById('birthdate').addEventListener('blur', e => {
+  e.target.value = normalizeBirthdate(e.target.value);
+});
+document.getElementById('phone').addEventListener('blur', e => {
+  e.target.value = normalizePhone(e.target.value);
+});
+
+/* 회원가입 */
+async function signup(e){
+  if (e) e.preventDefault();
+
+  const email  = document.getElementById('email').value.trim();
+  const pw     = document.getElementById('password').value;
+  const pw2    = document.getElementById('confirm_password').value;
+  const userId = document.getElementById('userId').value.trim();
+  const name   = document.getElementById('username').value.trim(); // 서버 User.name
+  const code   = document.getElementById('emailCode').value.trim();
+  const school = document.getElementById('school').value.trim();
+  const major  = document.getElementById('major-input').value.trim();
+  const birth  = document.getElementById('birthdate').value.trim();
+  const phone  = document.getElementById('phone').value.trim();
+
+  if (!userId || !email || !pw || !pw2 || !name) {
+    alert('아이디, 이메일, 비밀번호, 이름은 필수입니다.');
+    return;
+  }
+  if (pw !== pw2) { alert('비밀번호가 일치하지 않습니다.'); return; }
+
+  const payload = { email, password: pw, username: userId, name, school, major, birthdate: birth, phone, code };
+
+  const btn = document.getElementById('btnSignup');
+  if (btn) { btn.disabled = true; btn.textContent = '가입 중...'; }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const ct = res.headers.get('content-type') || '';
+    let data = {};
+    let text = '';
+    if (ct.includes('application/json')) {
+      data = await res.json().catch(()=>({}));
+    } else {
+      text = await res.text();
+      try { data = JSON.parse(text); } catch {}
+    }
+
+    if (!res.ok || data.ok === false) {
+      alert('회원가입 실패\n' + (data.message || text || res.status));
+      return;
+    }
+
+    alert('회원가입 성공! 로그인 페이지로 이동합니다.');
+    location.href = 'login.html';
+  } catch (err) {
+    alert('네트워크 오류\n' + err);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '가입하기'; }
+  }
+}
+
+/* 이벤트 바인딩 */
+document.getElementById('btnEmailCode').addEventListener('click', requestEmailCode);
+document.getElementById('btnVerifyEmail').addEventListener('click', verifyEmailCode);
+document.getElementById('btnSignup').addEventListener('click', signup);
+</script>
+<script src="/js/auth-adapter.js?v=20251106"></script>
+
+</body>
+</html>

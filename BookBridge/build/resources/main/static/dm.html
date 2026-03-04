@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>DM - BookBridge</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="/Design.css" rel="stylesheet">
+  <script src="/js/config.js?v=20251106"></script>
+  <style>
+    body{background:#fff}
+    .wrap{max-width:1100px;margin:0 auto;padding:16px}
+    .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+    .back{border:1px solid #eee;padding:8px 12px;border-radius:10px;background:#fafafa;cursor:pointer}
+    .layout{display:grid;grid-template-columns:320px 1fr;gap:14px}
+    @media(max-width:920px){ .layout{grid-template-columns:1fr} }
+    .panel{border:1px solid #eee;border-radius:12px;background:#fff;overflow:hidden}
+    .head{padding:12px 14px;border-bottom:1px solid #eee;font-weight:800}
+    .threads{max-height:68vh;overflow:auto}
+    .thread{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-bottom:1px solid #f4f6fa;cursor:pointer;text-align:left}
+    .thread:hover{background:#fff6f0}
+    .thread.active{background:#111;color:#fff;border-bottom-color:#111}
+    .who{font-weight:800}
+    .last{font-size:12px;opacity:.8}
+    .chat{display:flex;flex-direction:column;height:68vh}
+    .msgs{flex:1;overflow:auto;padding:12px}
+    .msg{max-width:70%;padding:8px 10px;border-radius:12px;margin:6px 0;word-break:break-word;line-height:1.35;border:1px solid #eee;background:#f7f9fc}
+    .me{margin-left:auto;background:#111;color:#fff;border-color:#111}
+    .meta{font-size:11px;opacity:.7;margin-top:4px}
+    .input{display:flex;gap:8px;padding:10px;border-top:1px solid #eee}
+    .inp{flex:1;border:1px solid #ddd;border-radius:10px;padding:10px 12px}
+    .btn{border:1px solid #111;background:#111;color:#fff;border-radius:10px;padding:10px 14px;cursor:pointer}
+    .hint{color:#637083;font-size:13px;padding:12px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <button class="back" onclick="history.back()">&lt; 목록으로</button>
+      <div></div>
+    </div>
+
+    <div class="layout">
+      <section class="panel">
+        <div class="head">대화 목록</div>
+        <div id="threadBox" class="threads"></div>
+      </section>
+
+      <section class="panel">
+        <div class="head" id="chatHead">대화</div>
+        <div id="msgs" class="msgs"></div>
+        <div class="input">
+          <input id="msgInput" class="inp" placeholder="메시지를 입력"/>
+          <button id="sendBtn" class="btn">전송</button>
+        </div>
+      </section>
+    </div>
+
+    <div id="emptyHint" class="hint" style="display:none">대화가 없습니다. 상세페이지에서 '쪽지 보내기'로 시작해 보세요.</div>
+  </div>
+
+  <script src="/js/api.js?v=20251106"></script>
+  <script>
+    const API_BASE = (window.API_BASE ?? "").toString().replace(/\/+$/,"");
+    const $  = (s,r=document)=>r.querySelector(s);
+    const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
+    const esc=(s)=>(s??"").toString().replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;","&gt;":"&gt;"}[m]));
+
+    function getUser(){ try{return JSON.parse(localStorage.getItem('user')||'null')}catch{return null} }
+    const me = (getUser()?.email || getUser()?.id || "");
+
+    // ----- 공통 fetch/정규화 -----
+    async function jget(url,opt){
+      const r=await fetch(url,{credentials:"include",cache:"no-store",...(opt||{})});
+      if(!r.ok) throw new Error(r.status);
+      return r.json().catch(()=>null);
+    }
+    const pickList = (x)=> Array.isArray(x) ? x
+      : (Array.isArray(x?.content)? x.content
+      : (Array.isArray(x?.data)? x.data
+      : (Array.isArray(x?.list)? x.list : [])));
+
+    // ----- 쓰레드/메시지 로딩 -----
+    let currentTid=null, pollTimer=null;
+
+    async function loadThreads(){
+      const eps=[
+        ["/api/dm/threads","GET"], ["/api/dm/thread","GET"], ["/api/dm","GET"]
+      ];
+      let list=[];
+      for(const [p,m] of eps){
+        try{
+          const j = await jget(API_BASE+p,{method:m});
+          list = pickList(j);
+          if(list.length) break;
+        }catch{}
+      }
+      renderThreads(list);
+      if(!list.length) $("#emptyHint").style.display="block";
+    }
+
+    function renderThreads(list){
+      const box=$("#threadBox"); if(!box) return;
+      box.innerHTML = (list||[]).map(t=>{
+        const id=t.id||t.threadId||t.dmThreadId||"";
+        const who=t.you?.name || t.you?.id || t.counterpart || t.partner || t.title || "대화상대";
+        const last=(t.lastMessage?.text || t.preview || t.last || "");
+        return `<button class="thread" data-tid="${id}">
+          <span class="who">${esc(who)}</span>
+          <span class="last">${esc(last)}</span>
+        </button>`;
+      }).join("");
+
+      box.addEventListener("click",(e)=>{
+        const it=e.target.closest(".thread"); if(!it) return;
+        $$(".thread").forEach(b=>b.classList.remove("active"));
+        it.classList.add("active");
+        currentTid = it.getAttribute("data-tid");
+        $("#chatHead").textContent = "대화 #"+currentTid;
+        loadMessages();
+      }, { once:true });
+    }
+
+    async function loadMessages(){
+      if(!currentTid) return;
+      const eps=[
+        ["/api/dm/messages","GET"],
+        ["/api/dm/thread/messages","GET"],
+        ["/api/dm/chat","GET"]
+      ];
+      let list=[];
+      for(const [p,m] of eps){
+        try{
+          const u=new URL(API_BASE+p); u.searchParams.set("threadId", currentTid);
+          const j=await jget(u.toString(),{method:m});
+          list=pickList(j);
+          if(list.length) break;
+        }catch{}
+      }
+      renderMessages(list);
+      startPoll();
+    }
+
+    function renderMessages(list){
+      const box=$("#msgs"); if(!box) return;
+      box.innerHTML = (list||[]).map(m=>{
+        const mine=(m.me===true)||(m.senderId===me)||(String(m.sender||"")==String(me));
+        const text=(m.text||m.body||m.message||"").toString();
+        const time=(m.createdAt||m.time||"");
+        return `<div class="msg ${mine?'me':''}">
+          <div>${esc(text)}</div>
+          <div class="meta">${esc(time)}</div>
+        </div>`;
+      }).join("");
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function clearPoll(){
+      if(pollTimer){ clearInterval(pollTimer); pollTimer=null; }
+    }
+    function startPoll(){
+      clearPoll();
+      pollTimer=setInterval(()=>{ loadMessages().catch(()=>{}); }, 3000);
+    }
+
+    async function sendCurrent(){
+      if(!currentTid) return alert("스레드를 먼저 선택하세요.");
+      const text = ($("#msgInput").value||"").trim();
+      if (!text) return;
+      $("#msgInput").value = "";
+
+      const body = { threadId: currentTid, text, meId: me };
+      const eps = [
+        ["/api/dm/send","POST"], ["/api/dm/message","POST"], ["/api/dm/messages","POST"]
+      ];
+      for (const [p,m] of eps){
+        try{
+          const r = await fetch(API_BASE+p,{
+            method:m, credentials:"include",
+            headers:{ "content-type":"application/json" },
+            body: JSON.stringify(body)
+          });
+          if(r.ok){ await loadMessages(); return; }
+        }catch{}
+      }
+      alert("메시지 전송에 실패했습니다.");
+    }
+
+    $("#sendBtn").addEventListener("click", sendCurrent);
+    $("#msgInput").addEventListener("keydown",(e)=>{
+      if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); sendCurrent(); }
+    });
+
+    (async function init(){
+      const u = getUser();
+      if(!u){ alert("로그인이 필요합니다."); location.href="login.html"; return; }
+      await loadThreads();
+    })();
+
+    window.addEventListener("beforeunload", clearPoll);
+  </script>
+
+  <!-- 추가: 로그인 상태 동기화 -->
+  <script src="/js/auth-adapter.js?v=20251106"></script>
+</body>
+</html>

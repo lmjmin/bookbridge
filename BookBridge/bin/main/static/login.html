@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>로그인</title>
+  <style>
+    body{font-family:Arial, sans-serif; display:flex; justify-content:center; align-items:center; min-height:100vh; background:#fff;}
+    .container{background:#fff; padding:30px; border-radius:10px; box-shadow:0 0 15px rgba(0,0,0,.15); text-align:center; width:320px;}
+    .logo{width:80px; margin-bottom:15px;}
+    h2{margin-bottom:20px; color:#000;}
+    input{width:90%; padding:12px; margin:10px 0; border:2px solid #FF450A; border-radius:8px; transition:.3s;}
+    input:focus{border-color:#000; outline:none;}
+    button{width:100%; padding:12px; background:#000; color:#fff; border:none; border-radius:8px; cursor:pointer; font-size:16px; transition:.3s;}
+    button:hover{background:#FF450A;}
+    .links{margin-top:15px;}
+    .links a{text-decoration:none; color:#FF450A; font-weight:bold;}
+    .links a:hover{text-decoration:underline;}
+  </style>
+  <script>
+    (function(){
+      var isLocal = location.hostname === "localhost" || location.hostname === "127.0.0.1";
+      if (!isLocal && location.protocol === "http:") {
+        location.replace("https://" + location.host + location.pathname + location.search + location.hash);
+      }
+    })();
+  </script>
+</head>
+<body>
+  <div class="container">
+    <img src="media/로고.png" alt="BookBridge" class="logo"/>
+    <h2>로그인</h2>
+
+    <input id="email" type="email" placeholder="이메일" />
+    <input id="password" type="password" placeholder="비밀번호" />
+    <button id="btnLogin">로그인</button>
+
+    <div class="links">
+      <a href="signup.html">회원가입</a>
+    </div>
+  </div>
+
+<script>
+const API_BASE = (window.API_BASE || "").replace(/\/+$/,"");
+
+async function login(){
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const btn = document.getElementById('btnLogin');
+
+  if(!email || !password){
+    alert('이메일과 비밀번호를 입력하세요.');
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = '로그인 중...';
+
+  const endpoints = [
+    `${API_BASE}/api/auth/login`,
+    `${API_BASE}/api/login`
+  ];
+
+  for (const url of endpoints){
+    try{
+      const r = await fetch(url, {
+        method:'POST',
+        credentials:'include',
+        headers:{'content-type':'application/json'},
+        body: JSON.stringify({ email, password })
+      });
+      if(!r.ok) continue;
+      const u = await r.json().catch(()=>null);
+
+      if (u) { try { localStorage.setItem('user', JSON.stringify(u.user ? u.user : u)); } catch {} }
+      location.href = 'first.html';
+      return;
+    }catch(e){}
+  }
+
+  alert('로그인에 실패했습니다.');
+  btn.disabled = false; btn.textContent = '로그인';
+}
+
+document.getElementById('btnLogin').addEventListener('click', login);
+document.addEventListener('keydown', (e)=>{ if(e.key==='Enter') login(); });
+</script>
+
+<script src="/js/auth-adapter.js?v=20251106"></script>
+</body>
+</html>

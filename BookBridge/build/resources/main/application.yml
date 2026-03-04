@@ -1,0 +1,16 @@
+spring:
+  mail:
+    host: smtp.naver.com
+    port: 465
+    username: alswn6546@naver.com
+    password: BF65968C5DZN        # 새 앱비밀번호로 즉시 교체 권장
+    default-encoding: UTF-8
+    properties:
+      mail:
+        smtp:
+          auth: true
+          ssl:
+            enable: true
+            trust: smtp.naver.com
+          starttls:
+            enable: false

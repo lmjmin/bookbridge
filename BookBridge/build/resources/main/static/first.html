@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BookBridge</title>
+
+  <link href="Design.css" type="text/css" rel="stylesheet" />
+  <style>
+    .btn-row { display:flex; gap:10px; justify-content:flex-end; margin-top:10px; }
+    .btn-ghost { background:#f7f7f7; border:1px solid #ddd; color:#111; }
+    @media (hover:hover) and (pointer:fine) { #adv-scan-btn { display:none !important; } }
+
+    #welcome-screen{position:fixed;inset:0;display:grid;place-items:center;background:#fff;z-index:9997;transition:opacity .45s}
+    #welcome-screen img{width:110px;height:110px;display:block;margin:0 auto 16px}
+    #welcome-screen h1{font-size:34px;color:#ff4d1a;font-weight:800;text-align:center}
+  </style>
+
+  <!-- HTTPS 강제 & API 베이스 -->
+  <script src="/js/force-https.js?v=20251113"></script>
+  <script src="/js/api-base.js?v=20251113"></script>
+
+  <!-- 스캐너 지연 로드 -->
+  <script src="/js/scan-loader.js?v=20251113" defer></script>
+
+  <!-- 카탈로그 안전 래퍼(검색/ISBN/필터) + 상세검색/스캔 로직 -->
+  <script src="/js/api-catalog.js?v=20251113"></script>
+  <script src="/js/adv-search.js?v=20251113"></script>
+</head>
+<body>
+  <!-- 웰컴 스크린 -->
+  <div id="welcome-screen">
+    <div>
+      <img src="/media/로고.png" alt="BookBridge 로고" />
+      <h1>BookBridge</h1>
+    </div>
+  </div>
+
+  <div class="container">
+    <header>
+      <div class="search-container">
+        <input type="text" id="searchInput" placeholder="책 검색..." class="search-input" />
+        <button class="search-button" id="btnSearch">검색</button>
+        <button class="search-button" id="camera-btn" style="display:none">📷</button>
+        <button class="search-button" id="btn-adv">상세 검색</button>
+      </div>
+
+      <div class="logo-auth-container">
+        <div class="logo" style="cursor:pointer" onclick="goHome()">
+          <img src="/media/로고.png" alt="BookBridge 로고" />
+          <h1>BookBridge</h1>
+        </div>
+        <button class="auth-button" id="mobile-auth-btn">로그인/회원가입</button>
+      </div>
+
+      <div class="auth-buttons" id="pc-auth-btns">
+        <button class="login-btn" id="login-btn">로그인/회원가입</button>
+      </div>
+    </header>
+
+    <nav>
+      <div class="nav-container">
+        <ul id="nav-menu">
+          <li><a href="#" onclick="document.getElementById('recommendation-section')?.scrollIntoView({behavior:'smooth'});return false;">당신을 위한 전공책 추천</a></li>
+          <li><a id="btn-sell" href="sell.html">책 판매하기</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <main>
+      <section class="book-recommendation" id="recommendation-section">
+        <h2>당신을 위한 추천 전공책</h2>
+        <div class="reco-row" id="home-list"></div>
+        <p id="home-empty" class="empty" style="display:none">데이터가 없습니다.</p>
+      </section>
+
+      <section class="book-recommendation" id="search-section" style="display:none">
+        <h2>검색 결과</h2>
+        <div class="reco-row" id="search-list"></div>
+        <p id="search-empty" class="empty" style="display:none">검색 결과가 없습니다.</p>
+      </section>
+    </main>
+  </div>
+
+  <!-- 상세 검색 모달 -->
+  <div id="adv-backdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:9998;"></div>
+  <div id="adv-modal" style="display:none;position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:9999;background:#fff;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.2);width:min(560px,92vw);max-height:86vh;overflow:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid #eee;">
+      <strong>상세 검색</strong>
+      <button id="adv-close" class="search-button btn-ghost" style="padding:6px 10px;">닫기</button>
+    </div>
+    <form id="adv-form" style="padding:14px 16px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <label>키워드
+          <input id="adv-q" type="text" placeholder="제목/저자/출판사" style="width:100%;padding:8px;">
+        </label>
+        <label>학과
+          <input id="adv-dept" type="text" placeholder="예: 컴퓨터공학과" style="width:100%;padding:8px;">
+        </label>
+        <label>최저가
+          <input id="adv-min" type="number" min="0" step="100" placeholder="0" style="width:100%;padding:8px;">
+        </label>
+        <label>최고가
+          <input id="adv-max" type="number" min="0" step="100" placeholder="50000" style="width:100%;padding:8px;">
+        </label>
+        <label style="grid-column:1 / -1;">상태(설명에 포함될 단어)
+          <input id="adv-cond" type="text" placeholder="예: 새책급, 밑줄없음" style="width:100%;padding:8px;">
+        </label>
+        <label><input id="adv-hasimage" type="checkbox"> 이미지 있는 것만</label>
+      </div>
+
+      <hr style="margin:14px 0;">
+
+      <div>
+        <label>ISBN
+          <input id="adv-isbn" type="text" placeholder="스캔 또는 직접 입력" style="width:100%;padding:8px;">
+        </label>
+        <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <button id="adv-scan-btn" class="search-button" style="padding:8px 12px;">카메라로 스캔</button>
+          <button id="adv-clear-btn" type="button" class="search-button btn-ghost" style="padding:8px 12px;">입력 지우기</button>
+          <small id="scan-hint" style="color:#888;display:none">모바일+HTTPS에서만 동작합니다.</small>
+        </div>
+        <div id="adv-scanner" style="width:280px;max-width:100%;margin:10px 0;border:1px dashed #ccc;border-radius:8px;display:none;"></div>
+      </div>
+
+      <div class="btn-row">
+        <button type="submit" class="search-button" style="padding:10px 14px;">검색</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- 공용 모듈 -->
+  <script type="module" src="/js/auth.js?v=20251109"></script>
+  <script src="/js/api.js?v=20251109"></script>
+  <script src="/js/wishlist.js?v=20251109"></script>
+  <script src="/js/auth-adapter.js?v=20251113"></script>
+  <script src="/js/ui-patch.js?v=20251109"></script>
+  <script src="/js/kakao-config.js"></script>
+  <script src="/js/kakao-book.js?v=20251112-4"></script>
+  <script src="/js/reco.js?v=20251109"></script>
+
+  <!-- 페이지 스크립트 (목록/검색) -->
+  <script>
+    const API_BASE = (window.API_BASE ?? "").replace(/\/+$/,"");
+    const esc = (s)=> (s ?? "").toString().replace(/[&<>"]/g,m=>({
+      "&":"&amp;",
+      "<":"&lt;",
+      ">":"&gt;",
+      "\"":"&quot;"
+    }[m]) );
+
+    function resolveImg(u){
+      if(!u) return (API_BASE || "") + "/media/no-image.png";
+      const s = String(u).trim();
+      if (/^https?:\/\//i.test(s) || s.startsWith("data:")) return s;
+      if (s.startsWith("/")) return API_BASE + s;
+      return s;
+    }
+    const canonicalId = (b)=> (b?.id ?? b?.bookId ?? b?.isbn ?? b?.title ?? "").toString();
+    function goHome(){ location.href="first.html"; }
+
+    // 로그인 여부
+    function isLoggedIn() {
+      try {
+        if (window.Auth && typeof window.Auth.getUser === "function") {
+          const u = window.Auth.getUser();
+          if (u && (u.email || u.username || u.name || u.id)) return true;
+        }
+      } catch (e) {
+        console.warn("Auth.getUser 체크 중 에러", e);
+      }
+      try {
+        const raw = localStorage.getItem("user");
+        if (!raw) return false;
+        const u = JSON.parse(raw);
+        return !!(u && (u.email || u.username || u.name || u.id));
+      } catch (e) {
+        console.warn("localStorage.user 파싱 실패", e);
+        return false;
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const ws = document.getElementById('welcome-screen');
+      setTimeout(()=>{ ws.style.opacity='0'; setTimeout(()=>{ws.style.display='none'},450); }, 800);
+
+      if (window.Reco && typeof window.Reco.init === "function") {
+        window.Reco.init();
+      }
+
+      await loadHome();
+
+      const inp = document.getElementById('searchInput');
+      const btn = document.getElementById('btnSearch');
+      if (inp) inp.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); manualSearch(); }});
+      if (btn) btn.addEventListener('click', e=>{ e.preventDefault(); manualSearch(); });
+    });
+
+    function cardHtml(b){
+      const id = canonicalId(b);
+      const img = resolveImg(
+        b.thumbnail || b.thumbUrl || b.imageUrl || b.coverImage || b.imagePath
+      );
+      const price = (b.price!=null)? `${Number(b.price).toLocaleString()}원` : "";
+      return `
+        <div class="reco-card" data-book-card
+             data-isbn="${esc(b.isbn||'')}"
+             data-title="${esc(b.title||'')}"
+             data-author="${esc(b.author||'')}">
+          <button class="wish-btn" data-wish-btn data-book-id="${esc(id)}" aria-pressed="false">♡</button>
+          <a class="cover-link" href="detail.html?id=${encodeURIComponent(id)}">
+            <img src="${img}" alt="${esc(b.title||'책 이미지')}"
+                 onerror="this.onerror=null;this.src='${(API_BASE || '') + '/media/no-image.png'}';" />
+            <div class="meta">
+              <div class="title">${esc(b.title||'')}</div>
+              <div class="price">${price}</div>
+            </div>
+          </a>
+        </div>`;
+    }
+
+    // 🔍 Kakao 썸네일로 검색 결과 이미지 보강
+    async function enrichSearchThumbnails(list) {
+      if (!window.KakaoBook || typeof window.KakaoBook.search !== "function") {
+        return list;
+      }
+
+      const arr = Array.isArray(list)
+        ? list.slice()
+        : (Array.isArray(list?.content) ? list.content.slice() : []);
+
+      if (!arr.length) return list;
+
+      const cache = new Map();
+      const tasks = arr.map(async (b, idx) => {
+        if (b.thumbnail || b.thumbUrl || b.imageUrl || b.coverImage || b.imagePath) {
+          return;
+        }
+
+        const key = (b.isbn || b.title || "").toString().trim();
+        if (!key) return;
+
+        if (cache.has(key)) {
+          const thumb = cache.get(key);
+          if (thumb) arr[idx] = { ...b, thumbnail: thumb };
+          return;
+        }
+
+        try {
+          const results = await window.KakaoBook.search(key, { page: 1, size: 1 });
+          const thumb = (results && results[0] && results[0].thumbnail) || "";
+          cache.set(key, thumb || null);
+          if (thumb) {
+            arr[idx] = { ...b, thumbnail: thumb };
+          }
+        } catch (e) {
+          console.warn("kakao thumb fail", e);
+          cache.set(key, null);
+        }
+      });
+
+      try {
+        await Promise.all(tasks);
+      } catch {}
+
+      // 원래 타입(Array 또는 {content:[]}) 형태 유지
+      if (Array.isArray(list)) return arr;
+      if (Array.isArray(list?.content)) {
+        return { ...list, content: arr };
+      }
+      return arr;
+    }
+
+    // 홈 추천/최신
+    async function loadHome(){
+      const box   = document.getElementById("home-list");
+      const empty = document.getElementById("home-empty");
+
+      if (!isLoggedIn()) {
+        if (box)   box.innerHTML = "";
+        if (empty) {
+          empty.textContent = "데이터가 없습니다.";
+          empty.style.display = "block";
+        }
+        return;
+      }
+
+      try{
+        if (window.Reco && typeof window.Reco.run === "function") {
+          await window.Reco.run();
+          const hasCard = box && box.querySelector(".reco-card");
+          if (hasCard) {
+            if (empty) empty.style.display = "none";
+            return;
+          }
+        }
+
+        const list = await window.$api.catalog.latest();
+        if (!list.length) {
+          if (box)   box.innerHTML = "";
+          if (empty) empty.style.display = "block";
+          return;
+        }
+
+        if (empty) empty.style.display = "none";
+        if (box) {
+          box.innerHTML = list.map(cardHtml).join("");
+          document.dispatchEvent(new Event("wishlist:invalidate"));
+        }
+      } catch(e) {
+        console.warn("home load error", e);
+        if (box)   box.innerHTML = "";
+        if (empty) empty.style.display = "block";
+      }
+    }
+
+    async function manualSearch(){
+      const inputEl = document.getElementById("searchInput");
+      const keyword = (inputEl && inputEl.value || "").trim();
+      if (!keyword){ alert("검색어를 입력하세요."); return; }
+
+      showSearchSection();
+
+      try{
+        const raw = await window.$api.catalog.search(keyword);
+        const enriched = await enrichSearchThumbnails(raw);   // 🔥 썸네일 보강
+        renderResults(enriched);
+      }catch(e){
+        console.warn(e);
+        const sList = document.getElementById("search-list");
+        if (sList) sList.innerHTML = "<p>검색 실패</p>";
+      }
+    }
+
+    function showSearchSection(){
+      const recSec = document.getElementById("recommendation-section");
+      if (recSec) {
+        recSec.style.display = "none";       // 🔥 검색 시 추천 섹션 완전히 숨김
+        recSec.classList.add("hidden");
+      }
+      const sSec = document.getElementById("search-section");
+      if (sSec) sSec.style.display = "block";
+    }
+
+    function renderResults(list){
+      const sList = document.getElementById("search-list");
+      const sEmpty= document.getElementById("search-empty");
+      if (!sList || !sEmpty) return;
+      const arr = Array.isArray(list) ? list : (Array.isArray(list?.content) ? list.content : []);
+      if (!arr.length){
+        sList.innerHTML = "";
+        sEmpty.style.display = "block";
+      } else {
+        sEmpty.style.display = "none";
+        sList.innerHTML = arr.map(cardHtml).join("");
+        document.dispatchEvent(new Event("wishlist:invalidate"));
+      }
+    }
+
+    window.renderResults = renderResults;
+    window.showSearchSection = showSearchSection;
+  </script>
+</body>
+</html>

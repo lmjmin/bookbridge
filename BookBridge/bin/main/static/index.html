@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <script>
+    (function(){
+      var isLocal = location.hostname === "localhost" || location.hostname === "127.0.0.1";
+      if (!isLocal && location.protocol === "http:") {
+        location.replace("https://" + location.host + location.pathname + location.search + location.hash);
+      }
+    })();
+  </script>
+  <meta http-equiv="refresh" content="0; url=/s/first.html"/>
+  <title>BookBridge</title>
+</head>
+<body></body>
+</html>

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>아이디/비밀번호 찾기</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            background-color: #FFFFFF; 
+        }
+        .container { 
+            background: white; 
+            padding: 30px; 
+            border-radius: 10px; 
+            box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.15); 
+            text-align: center; 
+            width: 320px; 
+        }
+        .logo {
+            width: 80px;
+            margin-bottom: 15px;
+        }
+        h2 { 
+            margin-bottom: 20px; 
+            color: #000000; 
+        }
+        input { 
+            width: 90%; 
+            padding: 12px; 
+            margin: 10px 0; 
+            border: 2px solid #FF450A; 
+            border-radius: 8px; 
+            transition: 0.3s;
+        }
+        input:focus {
+            border-color: #000000;
+            outline: none;
+        }
+        button { 
+            width: 100%; 
+            padding: 12px; 
+            background: #000000; 
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-size: 16px;
+            transition: 0.3s;
+        }
+        button:hover { 
+            background: #FF450A; 
+        }
+        .links { margin-top: 15px; }
+        .links a { 
+            text-decoration: none; 
+            color: #FF450A; 
+            font-weight: bold;
+        }
+        .links a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <img src="/media/로고.png" alt="로고" class="logo">
+        <h2>아이디 / 비밀번호 찾기</h2>
+        <input type="email" id="email" placeholder="이메일을 입력하세요">
+        <button onclick="findAccount()">찾기</button>
+        <div class="links">
+            <a href="login.html">로그인으로 돌아가기</a>
+        </div>
+    </div>
+
+    <script>
+        function findAccount() {
+            let email = document.getElementById("email").value;
+
+            if (email === "") {
+                alert("이메일을 입력하세요.");
+            } else {
+                alert("입력한 이메일로 아이디 및 비밀번호 찾기 정보를 전송했습니다.");
+                location.href = "login.html";
+            }
+        }
+    </script>
+</body>
+</html>

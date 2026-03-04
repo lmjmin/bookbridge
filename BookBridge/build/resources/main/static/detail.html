@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>상세보기 - BookBridge</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="Design.css" rel="stylesheet">
+  <script src="/js/force-https.js?v=20251113"></script>
+  <script src="/js/api-base.js?v=20251113"></script>
+  <script src="./js/api.js?v=20251106"></script>
+  <script src="./js/wishlist.js?v=20251106"></script>
+  <style>
+    body{background:#fff}
+    .wrap{max-width:1024px;margin:0 auto;padding:18px 16px}
+    .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+    .back{border:1px solid #eee;border-radius:10px;padding:8px 12px;background:#fafafa;cursor:pointer}
+
+    .layout{display:grid;grid-template-columns:280px minmax(0,1fr);gap:20px}
+    @media(max-width:900px){.layout{grid-template-columns:1fr}}
+
+    .thumb{
+      width:100%;
+      max-width:260px;
+      aspect-ratio:3/4;
+      background:#f5f5f5;
+      border-radius:14px;
+      overflow:hidden;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:14px;
+      color:#999;
+      border:1px solid #eee;
+    }
+    .thumb img{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      display:block;
+    }
+
+    .info h1{
+      font-size:20px;
+      margin-bottom:6px;
+    }
+    .meta{
+      font-size:13px;
+      color:#666;
+      margin-bottom:10px;
+    }
+    .price{
+      font-size:18px;
+      font-weight:700;
+      margin:10px 0;
+    }
+    .tag-row{
+      display:flex;
+      flex-wrap:wrap;
+      gap:6px;
+      margin:4px 0 10px;
+      font-size:12px;
+    }
+    .tag{
+      border-radius:999px;
+      padding:4px 10px;
+      background:#fff5ef;
+      color:#ff450a;
+      border:1px solid #ffd4c0;
+    }
+
+    .pill-row{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      margin:6px 0 12px;
+      font-size:12px;
+      color:#555;
+    }
+    .pill{
+      padding:5px 10px;
+      border-radius:999px;
+      background:#f6f7fb;
+      border:1px solid #e1e4f5;
+    }
+
+    .btn-row{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      margin-top:12px;
+    }
+    .btn{
+      border-radius:10px;
+      border:1px solid #ddd;
+      padding:8px 14px;
+      cursor:pointer;
+      font-size:14px;
+      background:#fff;
+    }
+    .btn.primary{
+      background:#ff450a;
+      border-color:#ff450a;
+      color:#fff;
+    }
+    .btn-sub{
+      border-radius:999px;
+      padding:6px 12px;
+      font-size:13px;
+      border:1px solid #eee;
+      background:#fafafa;
+      cursor:pointer;
+    }
+
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+    /* 칩 버튼 스타일 (찜 / 쪽지) */
+    .chip-row{margin:10px 0 12px}
+    .btn-chip{
+      border-radius:999px;
+      border:1px solid #ffbca1;
+      background:#fff;
+      padding:6px 14px;
+      font-size:13px;
+      cursor:pointer;
+      color:#ff450a;
+    }
+    .btn-chip.on{
+      background:#ff450a;
+      color:#fff;
+      border-color:#ff450a;
+    }
+
+    /* 섹션 공통 */
+    .detail-section{
+      margin-top:30px;
+      display:none;
+    }
+    .detail-section.active{display:block}
+    .detail-section h3{
+      font-size:16px;
+      margin-bottom:12px;
+      color:#ff450a;
+    }
+
+    .detail-section .box{
+      border-radius:12px;
+      border:1px solid #eee;
+      background:#fff;
+      padding:14px 12px;
+      font-size:14px;
+      line-height:1.6;
+      white-space:pre-wrap;
+    }
+
+    .detail-section .box p{margin-bottom:6px}
+    .detail-section .box p:last-child{margin-bottom:0}
+
+    /* 탭 버튼 */
+    .tab-row{display:flex;gap:8px;margin-bottom:4px}
+    .tab-btn{
+      border-radius:999px;
+      border:1px solid #ffd4c0;
+      background:#fff;
+      padding:6px 16px;
+      font-size:13px;
+      cursor:pointer;
+      color:#ff450a;
+    }
+    .tab-btn.on{
+      background:#ff450a;
+      color:#fff;
+      border-color:#ff450a;
+    }
+
+    /* 채팅 안내 */
+    .dm-hint{
+      margin-top:6px;
+      font-size:12px;
+      color:#777;
+    }
+
+    /* 비슷한 상품 */
+    .similar-inner{margin-top:8px}
+    .reco-row{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
+    @media(max-width:980px){ .reco-row{grid-template-columns:repeat(3,1fr)} }
+    @media(max-width:600px){ .reco-row{grid-template-columns:repeat(2,1fr)} }
+
+    .card{border:1px solid #eee;border-radius:12px;overflow:hidden;background:#fff;text-decoration:none;color:inherit}
+    .card .cover{display:block;width:100%;aspect-ratio:3/4;background:#fafafa}
+    .card .cover img{width:100%;height:100%;object-fit:cover}
+    .card .meta{padding:10px}
+    .card .t{font-weight:700;line-height:1.35;height:2.7em;overflow:hidden;font-size:13px}
+    .empty{color:#666;margin:14px 4px;font-size:13px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <button class="back" onclick="history.back()">&lt; 목록으로</button>
+      <div></div>
+    </div>
+
+    <div class="layout">
+      <div>
+        <div id="thumb" class="thumb">No Image</div>
+      </div>
+
+      <div class="info">
+        <h1 id="title"></h1>
+        <div id="bookMeta" class="meta"></div>
+
+        <div class="price" id="priceBox"></div>
+
+        <div class="tag-row" id="tagRow">
+          <!-- 학과/학교/ISBN 등 -->
+        </div>
+
+        <div class="pill-row" id="pillRow">
+          <!-- 기타 정보 -->
+        </div>
+
+        <div class="chip-row">
+          <button class="btn-chip" data-wish-btn data-book-id="" id="wishBtn">♡ 찜</button>
+          <button class="btn-chip" id="dmBtn">쪽지 보내기</button>
+        </div>
+
+        <div class="dm-hint">
+          쪽지는 마이페이지 &gt; 쪽지 탭에서 다시 확인할 수 있습니다.
+        </div>
+      </div>
+    </div>
+
+    <!-- 탭 -->
+    <div style="margin-top:30px">
+      <div class="tab-row">
+        <button class="tab-btn on" data-tab="info">도서/판매 정보</button>
+        <button class="tab-btn" data-tab="seller">판매자 정보</button>
+        <button class="tab-btn" data-tab="similar">비슷한 도서</button>
+      </div>
+
+      <!-- 도서/판매 정보 -->
+      <section class="detail-section active" id="tab-info">
+        <h3>도서 정보</h3>
+        <div class="box" id="bookInfoBox">
+          <!-- 자동 채워짐 -->
+        </div>
+
+        <h3 style="margin-top:24px">판매 정보</h3>
+        <div class="box" id="saleInfoBox">
+          <!-- 자동 채워짐 -->
+        </div>
+      </section>
+
+      <!-- 판매자 정보 -->
+      <section class="detail-section" id="tab-seller">
+        <h3>판매자 정보</h3>
+        <div class="box" id="sellerBox">
+          <!-- 자동 채워짐 -->
+        </div>
+      </section>
+
+      <!-- 비슷한 도서 -->
+      <section class="detail-section" id="tab-similar">
+        <h3>비슷한 전공서적</h3>
+        <div class="box">
+          <div id="similarEmpty" class="empty" style="display:none">비슷한 도서를 찾지 못했습니다.</div>
+          <div id="similarList" class="reco-row"></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = (window.API_BASE || "").replace(/\/+$/,"");
+    const $ = (s,r=document)=>r.querySelector(s);
+    let ITEM_ID = null;
+    let SELLER_PROFILE_KEY = null;   // profile.html?user= 에 넘길 값
+
+    function resolveImg(u){
+      if(!u) return "media/no-image.png";
+      const s = String(u).trim();
+      if(/^https?:\/\//i.test(s) || s.startsWith("data:")) return s;
+      if (s.startsWith("/")) return API_BASE + s;
+      return s;
+    }
+
+    function esc(s){
+      return (s??"").toString().replace(/[&<>]/g, m=>({
+        "&":"&amp;","<":"&lt;",">":"&gt;"
+      }[m]));
+    }
+
+    function canonicalId(b){
+      return (b?.id ?? b?.bookId ?? b?.listingId ?? b?.isbn ?? "").toString();
+    }
+
+    async function fetchJSON(url,opt){
+      const r = await fetch(url,{credentials:"include",cache:"no-store",...(opt||{})});
+      if(!r.ok) throw new Error(r.status);
+      return r.json().catch(()=>null);
+    }
+
+    function normalizeItem(j){
+      if (!j) return null;
+      if (Array.isArray(j)) return j[0] || null;
+      if (Array.isArray(j?.content)) return j.content[0] || null;
+      if (Array.isArray(j?.data)) return j.data[0] || null;
+      if (Array.isArray(j?.list)) return j.list[0] || null;
+      return j;
+    }
+
+    function normalizeList(j){
+      if (!j) return [];
+      if (Array.isArray(j)) return j;
+      if (Array.isArray(j?.content)) return j.content;
+      if (Array.isArray(j?.data)) return j.data;
+      if (Array.isArray(j?.list)) return j.list;
+      return [];
+    }
+
+    async function loadDetail(){
+      const eps = [
+        [`/api/books/${encodeURIComponent(ITEM_ID)}`,"GET"],
+        [`/api/book/${encodeURIComponent(ITEM_ID)}`,"GET"],
+        [`/api/listings/${encodeURIComponent(ITEM_ID)}`,"GET"],
+        [`/api/books?id=${encodeURIComponent(ITEM_ID)}`,"GET"],
+        [`/api/book?id=${encodeURIComponent(ITEM_ID)}`,"GET"]
+      ];
+      let data=null;
+      for (const [p,m] of eps){
+        try{
+          const j = await fetchJSON(API_BASE+p,{method:m});
+          const one = normalizeItem(j);
+          if (one && (one.id || one.title || one.isbn)) { data = one; break; }
+        }catch{}
+      }
+      if (!data){ alert("데이터를 불러올 수 없습니다."); history.back(); return; }
+
+      // 상단 채우기
+      $("#title").textContent = data.title || data.bookTitle || "";
+      const author = data.author || data.authors || "";
+      const publisher = data.publisher || "";
+      $("#bookMeta").textContent = [author, publisher].filter(Boolean).join(" · ");
+
+      const priceVal = (data.price!=null) ? Number(data.price) : null;
+      $("#priceBox").textContent = priceVal ? priceVal.toLocaleString()+"원" : "";
+
+      const thumbUrl = resolveImg(data.thumbnail || data.imageUrl || data.coverImage);
+      const thumbBox = $("#thumb");
+      thumbBox.innerHTML = "";
+      const img = document.createElement("img");
+      img.src = thumbUrl;
+      img.alt = data.title || "";
+      thumbBox.appendChild(img);
+
+      const tags = [];
+      if (data.department || data.major) tags.push(data.department || data.major);
+      if (data.university || data.school) tags.push(data.university || data.school);
+      if (data.isbn) tags.push("ISBN " + String(data.isbn));
+      $("#tagRow").innerHTML = tags.map(t=>`<span class="tag">${esc(t)}</span>`).join("");
+
+      const pills = [];
+      if (data.conditionText) pills.push("상태: " + data.conditionText);
+      if (data.courseName) pills.push("과목: " + data.courseName);
+      if (data.professorName) pills.push("담당교수: " + data.professorName);
+      if (data.year) pills.push("수강년도: " + data.year);
+      $("#pillRow").innerHTML = pills.map(x=>`<span class="pill">${esc(x)}</span>`).join("");
+
+      const bookInfo = [];
+      if (author) bookInfo.push("저자: " + author);
+      if (publisher) bookInfo.push("출판사: " + publisher);
+      if (data.isbn) bookInfo.push("ISBN: " + data.isbn);
+      if (data.publishedAt || data.pubdate) bookInfo.push("출판일: " + (data.publishedAt||data.pubdate));
+      $("#bookInfoBox").innerHTML = (bookInfo.length
+        ? bookInfo.map(x=>`<p>${esc(x)}</p>`).join("")
+        : "<p>도서 정보가 없습니다.</p>");
+
+      const sellerObj = data.seller || data.owner || data.member || data.user || {};
+      const sellerName  = data.sellerName  || sellerObj.name  || sellerObj.username;
+      const sellerEmail = data.sellerEmail || sellerObj.email;
+      const sellerPhone = data.sellerPhone || sellerObj.phone;
+
+      const saleInfo = [];
+      if (priceVal) saleInfo.push("판매가: " + priceVal.toLocaleString()+"원");
+      if (data.conditionText) saleInfo.push("도서 상태: " + data.conditionText);
+      if (data.memo || data.description) saleInfo.push("판매자 한마디: " + (data.memo||data.description));
+      $("#saleInfoBox").innerHTML = (saleInfo.length
+        ? saleInfo.map(x=>`<p>${esc(x)}</p>`).join("")
+        : "<p>판매 정보가 없습니다.</p>");
+
+      const sellerBits = [];
+      if (sellerName)  sellerBits.push("이름: " + sellerName);
+      if (sellerEmail) sellerBits.push("이메일: " + sellerEmail);
+      if (sellerPhone) sellerBits.push("연락처: " + sellerPhone);
+      if (data.university || data.school) sellerBits.push("학교: " + (data.university||data.school));
+      if (data.major || data.department) sellerBits.push("학과: " + (data.major||data.department));
+      $("#sellerBox").innerHTML = (sellerBits.length
+        ? sellerBits.map(x=>`<p>${esc(x)}</p>`).join("")
+        : "<p>판매자 정보가 없습니다.</p>");
+
+      // 프로필 페이지에 넘길 값 (id/username/email 순)
+      SELLER_PROFILE_KEY =
+        sellerObj.username || sellerObj.userId || sellerObj.id ||
+        data.sellerUsername || data.sellerUserId || data.sellerId ||
+        data.sellerEmail || data.sellerName || null;
+
+      // 찜 버튼용 id
+      const wishBtn = document.getElementById("wishBtn");
+      if (wishBtn) {
+        const id = canonicalId(data);
+        wishBtn.setAttribute("data-book-id", id);
+      }
+
+      // 쪽지 버튼 동작 연결
+      const dmBtn = document.getElementById("dmBtn");
+      if (dmBtn) {
+        dmBtn.onclick = () => openDm(data, sellerObj);
+      }
+
+      await loadSimilar(data);
+      window.Wishlist?.init?.();
+    }
+
+    async function loadSimilar(item){
+      const listBox = document.getElementById("similarList");
+      const empty = document.getElementById("similarEmpty");
+      if (!listBox || !empty) return;
+
+      const author = item.author || item.authors || "";
+      const kw = author || item.title || "";
+      if (!kw){
+        listBox.innerHTML = "";
+        empty.style.display="block";
+        return;
+      }
+
+      const query = encodeURIComponent(kw);
+      const eps = [
+        [`/api/reco/similar?sourceId=${encodeURIComponent(canonicalId(item))}`,"GET"],
+        [`/api/books/search?q=${query}&size=12`,"GET"],
+        [`/api/search?q=${query}&size=12`,"GET"]
+      ];
+
+      let arr=[];
+      for (const [p,m] of eps){
+        try{
+          const j = await fetchJSON(API_BASE+p,{method:m});
+          arr = normalizeList(j);
+          if (arr.length) break;
+        }catch{}
+      }
+
+      if (!arr.length){ listBox.innerHTML=""; empty.style.display="block"; return; }
+
+      listBox.innerHTML = arr.slice(0,12).map(b=>{
+        const id = canonicalId(b);
+        const img = resolveImg(b.thumbnail || b.imageUrl || b.coverImage);
+        return `
+          <a href="detail.html?id=${encodeURIComponent(id)}" class="card">
+            <span class="cover"><img src="${img}" alt=""></span>
+            <span class="meta">
+              <span class="t">${(b.title||"").toString().replace(/[&<>]/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m]))}</span>
+            </span>
+          </a>`;
+      }).join("");
+    }
+
+    function getUser(){ try{return JSON.parse(localStorage.getItem('user')||'null')}catch{return null} }
+
+    async function openDm(item, sellerObj){
+      const me = getUser() || {};
+      if(!me || !(me.email || me.id || me.userId)){
+        alert("로그인이 필요합니다.");
+        location.href="login.html";
+        return;
+      }
+
+      const s = sellerObj || item.seller || item.owner || item.member || item.user || {};
+      const sellerEmail = item.sellerEmail || item.ownerEmail || item.email || s.email;
+      if (!sellerEmail){
+        alert("판매자 정보를 찾을 수 없습니다.");
+        return;
+      }
+
+      alert("쪽지 기능은 마이페이지 > 쪽지 탭에서 다시 확인할 수 있습니다.\n(현재 상세페이지에서는 스레드 생성만 지원)");
+      location.href = "dm.html";
+    }
+
+    function bindTabs(){
+      const tabs = document.querySelectorAll(".tab-btn");
+      tabs.forEach(btn=>{
+        btn.addEventListener("click", ()=>{
+          const t = btn.getAttribute("data-tab");
+
+          // 판매자 정보 탭 → 프로필 페이지 이동
+          if (t === "seller") {
+            if (SELLER_PROFILE_KEY) {
+              const u = encodeURIComponent(String(SELLER_PROFILE_KEY));
+              location.href = `profile.html?user=${u}`;
+            } else {
+              alert("판매자 프로필 정보를 찾을 수 없습니다.");
+            }
+            return;
+          }
+
+          // 나머지 탭은 기존처럼 섹션 토글
+          tabs.forEach(b=>b.classList.remove("on"));
+          btn.classList.add("on");
+          document.querySelectorAll(".detail-section").forEach(sec=>{
+            sec.classList.toggle("active", sec.id === "tab-"+t);
+          });
+        });
+      });
+    }
+
+    (async function init(){
+      const q = new URLSearchParams(location.search);
+      ITEM_ID = q.get("id");
+      if (!ITEM_ID){ alert("잘못된 접근입니다."); history.back(); return; }
+      bindTabs();
+      await loadDetail();
+      window.Wishlist?.init?.();
+    })();
+  </script>
+
+  <script src="./js/auth-adapter.js?v=20251106"></script>
+  
+</body>
+</html>
